@@ -1,4 +1,6 @@
-package caddy_cloudflare_ip
+// Modified by hexband in 2025: adapted from caddy-cloudflare-ip to WEDOS IP ranges.
+
+package caddy_wedos_ip
 
 import (
 	"bufio"
@@ -14,16 +16,15 @@ import (
 )
 
 const (
-	ipv4 = "https://www.cloudflare.com/ips-v4"
-	ipv6 = "https://www.cloudflare.com/ips-v6"
+	wedosIPsTxt = "https://ips.wedos.global/ips.txt"
 )
 
 func init() {
-	caddy.RegisterModule(CloudflareIPRange{})
+	caddy.RegisterModule(WedosIPRange{})
 }
 
-// CloudflareIPRange provides a range of IP address prefixes (CIDRs) retrieved from cloudflare.
-type CloudflareIPRange struct {
+// WedosIPRange provides a range of IP address prefixes (CIDRs) retrieved from WEDOS Global.
+type WedosIPRange struct {
 	// refresh Interval
 	Interval caddy.Duration `json:"interval,omitempty"`
 	// request Timeout
@@ -37,22 +38,22 @@ type CloudflareIPRange struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (CloudflareIPRange) CaddyModule() caddy.ModuleInfo {
+func (WedosIPRange) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "http.ip_sources.cloudflare",
-		New: func() caddy.Module { return new(CloudflareIPRange) },
+		ID:  "http.ip_sources.wedos",
+		New: func() caddy.Module { return new(WedosIPRange) },
 	}
 }
 
 // getContext returns a cancelable context, with a timeout if configured.
-func (s *CloudflareIPRange) getContext() (context.Context, context.CancelFunc) {
+func (s *WedosIPRange) getContext() (context.Context, context.CancelFunc) {
 	if s.Timeout > 0 {
 		return context.WithTimeout(s.ctx, time.Duration(s.Timeout))
 	}
 	return context.WithCancel(s.ctx)
 }
 
-func (s *CloudflareIPRange) fetch(api string) ([]netip.Prefix, error) {
+func (s *WedosIPRange) fetch(api string) ([]netip.Prefix, error) {
 	ctx, cancel := s.getContext()
 	defer cancel()
 
@@ -68,37 +69,29 @@ func (s *CloudflareIPRange) fetch(api string) ([]netip.Prefix, error) {
 	defer resp.Body.Close()
 
 	scanner := bufio.NewScanner(resp.Body)
+	// WEDOS ips.txt can be space-separated, so scan tokens instead of lines.
+	scanner.Split(bufio.ScanWords)
+
 	var prefixes []netip.Prefix
 	for scanner.Scan() {
-		prefix, err := caddyhttp.CIDRExpressionToPrefix(scanner.Text())
+		tok := scanner.Text()
+		prefix, err := caddyhttp.CIDRExpressionToPrefix(tok)
 		if err != nil {
 			return nil, err
 		}
 		prefixes = append(prefixes, prefix)
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
 	return prefixes, nil
 }
 
-func (s *CloudflareIPRange) getPrefixes() ([]netip.Prefix, error) {
-	var fullPrefixes []netip.Prefix
-	// fetch ipv4 list
-	prefixes, err := s.fetch(ipv4)
-	if err != nil {
-		return nil, err
-	}
-	fullPrefixes = append(fullPrefixes, prefixes...)
-
-	// fetch ipv6 list
-	prefixes, err = s.fetch(ipv6)
-	if err != nil {
-		return nil, err
-	}
-	fullPrefixes = append(fullPrefixes, prefixes...)
-
-	return fullPrefixes, nil
+func (s *WedosIPRange) getPrefixes() ([]netip.Prefix, error) {
+	return s.fetch(wedosIPsTxt)
 }
 
-func (s *CloudflareIPRange) Provision(ctx caddy.Context) error {
+func (s *WedosIPRange) Provision(ctx caddy.Context) error {
 	s.ctx = ctx
 	s.lock = new(sync.RWMutex)
 
@@ -107,7 +100,7 @@ func (s *CloudflareIPRange) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func (s *CloudflareIPRange) refreshLoop() {
+func (s *WedosIPRange) refreshLoop() {
 	if s.Interval == 0 {
 		s.Interval = caddy.Duration(time.Hour)
 	}
@@ -136,7 +129,7 @@ func (s *CloudflareIPRange) refreshLoop() {
 	}
 }
 
-func (s *CloudflareIPRange) GetIPRanges(_ *http.Request) []netip.Prefix {
+func (s *WedosIPRange) GetIPRanges(_ *http.Request) []netip.Prefix {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.ranges
@@ -144,11 +137,11 @@ func (s *CloudflareIPRange) GetIPRanges(_ *http.Request) []netip.Prefix {
 
 // UnmarshalCaddyfile implements caddyfile.Unmarshaler.
 //
-//	cloudflare {
+//	wedos {
 //	   interval val
 //	   timeout val
 //	}
-func (m *CloudflareIPRange) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (m *WedosIPRange) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next() // Skip module name.
 
 	// No same-line options are supported
@@ -186,8 +179,8 @@ func (m *CloudflareIPRange) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 // interface guards
 var (
-	_ caddy.Module            = (*CloudflareIPRange)(nil)
-	_ caddy.Provisioner       = (*CloudflareIPRange)(nil)
-	_ caddyfile.Unmarshaler   = (*CloudflareIPRange)(nil)
-	_ caddyhttp.IPRangeSource = (*CloudflareIPRange)(nil)
+	_ caddy.Module            = (*WedosIPRange)(nil)
+	_ caddy.Provisioner       = (*WedosIPRange)(nil)
+	_ caddyfile.Unmarshaler   = (*WedosIPRange)(nil)
+	_ caddyhttp.IPRangeSource = (*WedosIPRange)(nil)
 )

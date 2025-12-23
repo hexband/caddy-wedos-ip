@@ -1,4 +1,6 @@
-package caddy_cloudflare_ip
+// Modified by hexband in 2025: adapted from caddy-cloudflare-ip to WEDOS IP ranges.
+
+package caddy_wedos_ip
 
 import (
 	"context"
@@ -10,14 +12,14 @@ import (
 )
 
 func TestDefault(t *testing.T) {
-	testDefault(t, `cloudflare`)
-	testDefault(t, `cloudflare { }`)
+	testDefault(t, `wedos`)
+	testDefault(t, `wedos { }`)
 }
 
 func testDefault(t *testing.T, input string) {
 	d := caddyfile.NewTestDispenser(input)
 
-	r := CloudflareIPRange{}
+	r := WedosIPRange{}
 	err := r.UnmarshalCaddyfile(d)
 	if err != nil {
 		t.Errorf("unmarshal error for %q: %v", input, err)
@@ -34,14 +36,14 @@ func testDefault(t *testing.T, input string) {
 
 func TestUnmarshal(t *testing.T) {
 	input := `
-	cloudflare {
+	wedos {
 		interval 1.5h
 		timeout 30s
 	}`
 
 	d := caddyfile.NewTestDispenser(input)
 
-	r := CloudflareIPRange{}
+	r := WedosIPRange{}
 	err := r.UnmarshalCaddyfile(d)
 	if err != nil {
 		t.Errorf("unmarshal error: %v", err)
@@ -61,7 +63,7 @@ func TestUnmarshal(t *testing.T) {
 // Simulates being nested in another block.
 func TestUnmarshalNested(t *testing.T) {
 	input := `{
-				cloudflare {
+				wedos {
 					interval 1.5h
 					timeout 30s
 				}
@@ -74,7 +76,7 @@ func TestUnmarshalNested(t *testing.T) {
 	d.Next()
 	d.NextBlock(d.Nesting())
 
-	r := CloudflareIPRange{}
+	r := WedosIPRange{}
 	err := r.UnmarshalCaddyfile(d)
 	if err != nil {
 		t.Errorf("unmarshal error: %v", err)
