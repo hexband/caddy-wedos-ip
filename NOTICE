@@ -1,0 +1,8 @@
+This project is a fork of:
+  https://github.com/WeidiDeng/caddy-cloudflare-ip
+
+Changes in this fork (2025, hexband):
+- Fetch IP ranges from WEDOS Global / WEDOS Protection: https://ips.wedos.global/ips.txt
+- Module ID changed to: http.ip_sources.wedos
+- Caddyfile directive changed to: wedos
+

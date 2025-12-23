@@ -1,21 +1,49 @@
-# trusted_proxy module for caddy
+# WEDOS IP ranges module for Caddy
 
-This module retrieves cloudflare ips from their offical website, [ipv4](https://www.cloudflare.com/ips-v4) and [ipv6](https://www.cloudflare.com/ips-v6). It is supported from caddy v2.6.3 onwards.
+This project is a fork of `caddy-cloudflare-ip` (upstream: https://github.com/WeidiDeng/caddy-cloudflare-ip) adapted to fetch **WEDOS Global / WEDOS Protection** origin-facing IP ranges for use with Caddy's `trusted_proxies`.
 
-# Example config
+The module downloads the current list from:
 
-Put following config in global options under corresponding server options
+- `https://ips.wedos.global/ips.txt`
 
-```
-trusted_proxies cloudflare {
-    interval 12h
-    timeout 15s
+It implements Caddy's `http.ip_sources` interface.
+
+## Caddy module ID
+
+- `http.ip_sources.wedos`
+
+## Example config
+
+Put the following config in your **global options** under the corresponding server options:
+
+```caddyfile
+{
+  servers {
+    trusted_proxies combine {
+      wedos {
+        interval 12h
+        timeout 15s
+      }
+    }
+
+    trusted_proxies_strict
+    client_ip_headers X-Forwarded-For X-Real-IP
+  }
 }
 ```
 
-# Defaults
+## Defaults
 
-| Name     | Description                                            | Type     | Default    |
-|----------|--------------------------------------------------------|----------|------------|
-| interval | How often cloudflare ip lists are retrieved            | duration | 1h         |
-| timeout  | Maximum time to wait to get a response from cloudflare | duration | no timeout |
+| Name     | Description                                    | Type     | Default    |
+|----------|------------------------------------------------|----------|------------|
+| interval | How often the WEDOS IP list is refreshed       | duration | 1h         |
+| timeout  | Maximum time to wait for a response from WEDOS | duration | no timeout |
+
+## Notes
+
+- WEDOS may change IP ranges over time; this module refreshes them periodically.
+- `ips.txt` may be whitespace-separated; the module parses it as tokens.
+
+## License
+
+Apache License 2.0 (same as the upstream project).
